@@ -1,0 +1,148 @@
+name: Documentation Build
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      documentation_tag:
+        type: string
+        required: false
+        default: "latest"
+        description: "Label of the documentation"
+      publish_to_prod:
+        type: boolean
+        default: true
+      publish_to_dev:
+        type: boolean
+        default: true
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+      - 'v*-branch'
+    paths:
+      - '.github/workflows/doc-build.yml'
+      - '.github/workflows/doc-publish.yml'
+      - '**.rst'
+      - 'doc/**'
+      - "include/**"
+  push:
+    branches:
+      - main
+      - 'v*-branch'
+    tags:
+      - v*
+
+env:
+  DOXYGEN_VERSION: 1.12.0
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  doc-build-and-publish:
+    env:
+      ARCHIVE: "addon-serial_modem-${{inputs.documentation_tag}}.zip"
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip
+
+      - name: Install Python dependencies
+        working-directory: doc
+        run: |
+          python3 -m pip install -r requirements.txt
+
+      - name: Install Doxygen
+        run: |
+          wget --no-verbose "https://github.com/doxygen/doxygen/releases/download/Release_${DOXYGEN_VERSION//./_}/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
+          sudo tar xf doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz -C /opt
+          echo "/opt/doxygen-${DOXYGEN_VERSION}/bin" >> $GITHUB_PATH
+
+      - name: Build documentation
+        working-directory: doc
+        run: |
+          doxygen
+          sphinx-build -M html . build
+
+          cp custom.properties build/html
+          sed -i 's/__VERSION__/'"${{inputs.documentation_tag}}"'/g' build/html/custom.properties
+
+          cp tags.yml build/html
+          sed -i 's/__VERSION__/'"${{inputs.documentation_tag}}"'/g' build/html/tags.yml
+
+          cd build/html
+
+          zip -rq "${{env.ARCHIVE}}" .
+          ls -lah .
+          pwd
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: doc-build
+          if-no-files-found: error
+          retention-days: 2
+          path: |
+            doc/build/html/${{env.ARCHIVE}}
+
+      - name: Check version
+        run: |
+          VERSION_REGEX="^v([0-9a-zA-Z\.\-]+)$"
+          if [[ ${GITHUB_REF#refs/tags/} =~ $VERSION_REGEX ]]; then
+            VERSION=${BASH_REMATCH[1]}
+          elif [[ ${GITHUB_REF#refs/heads/} == "main" ]]; then
+            VERSION="latest"
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            VERSION="pr-${{ github.event.number }}"
+          fi
+          echo "VERSION=${VERSION}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      - name: Prepare Azure upload
+        run: |
+
+          PUBLISH="$PWD/publish"
+          mkdir -p "$PUBLISH"
+
+          MONITOR="monitor_${{ github.run_id }}.txt"
+
+          # Create documentation upload files
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            ARCHIVE="legacy-addon-serial-modem-pr-${{ github.event.number }}.zip"
+            echo "publish2 dev PR-${{ github.event.number }} ${ARCHIVE}" > "${MONITOR}"
+            echo "${{ github.event.number }}" > pr.txt
+          else
+            ARCHIVE="legacy-addon-serial-modem-${VERSION}.zip"
+            echo "publish2 main ${VERSION} ${ARCHIVE}" > "${MONITOR}"
+          fi
+
+          pushd "doc/build/html"
+          zip -rq "${ARCHIVE}" .
+          mv "${ARCHIVE}" "$PUBLISH"
+          popd
+
+          mv "${MONITOR}" "$PUBLISH"
+          if [[ -f pr.txt ]]; then mv pr.txt "$PUBLISH"; fi
+
+      - name: Store
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'external') || contains(github.event.pull_request.labels.*.name, 'CI-trusted-author') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs
+          retention-days: 5
+          path: |
+            publish/*

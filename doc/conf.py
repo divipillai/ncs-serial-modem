@@ -36,6 +36,11 @@ exclude_patterns = ['_build_sphinx', 'Thumbs.db', '.DS_Store']
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'sphinx_ncs_theme'
+html_theme_options = {
+    'docsets': {},
+}
+
+html_extra_path = ['versions.json']
 
 ## -- Options for Breathe ----------------------------------------------------
 # https://breathe.readthedocs.io/en/latest/index.html
