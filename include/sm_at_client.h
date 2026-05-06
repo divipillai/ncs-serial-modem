@@ -4,17 +4,17 @@
  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
-#ifndef SM_HOST_H_
-#define SM_HOST_H_
+#ifndef SM_AT_CLIENT_H_
+#define SM_AT_CLIENT_H_
 
 /**
- * @file sm_host.h
+ * @file sm_at_client.h
  *
- * @defgroup sm_host Serial Modem Host library
+ * @defgroup sm_at_client Serial Modem AT Client library
  *
  * @{
  *
- * @brief Public APIs for the Serial Modem Host library.
+ * @brief Public APIs for the Serial Modem AT Client library.
  */
 
 #ifdef __cplusplus
@@ -51,57 +51,75 @@ enum at_cmd_state {
  * @param data    Data received from Serial Modem.
  * @param datalen Length of the data received.
  *
- * @note The handler runs from uart callback. It must not call @ref sm_host_send_cmd. The data
+ * @note The handler runs from uart callback. It must not call @ref sm_at_client_send_cmd. The data
  * should be copied out by the application as soon as called.
  */
 typedef void (*sm_data_handler_t)(const uint8_t *data, size_t datalen);
 
 /**
- * @typedef sm_ind_handler_t
+ * @typedef sm_ri_handler_t
  *
- * Handler to handle @kconfig{CONFIG_SM_HOST_INDICATE_PIN} signal from Serial Modem.
+ * Handler to handle the Ring Indicate (RI) signal from Serial Modem.
  */
-typedef void (*sm_ind_handler_t)(void);
+typedef void (*sm_ri_handler_t)(void);
 
-/**@brief Initialize Serial Modem Host library.
+/**@brief Initialize Serial Modem AT Client library.
  *
  * @param handler Pointer to a handler function of type @ref sm_data_handler_t.
+ * @param automatic_uart If true, DTR and UART are automatically managed by the library.
+ * @param inactivity_timeout Inactivity timeout for DTR and UART disablement. Only used if @p
+ * automatic is true.
  *
  * @return Zero on success, non-zero otherwise.
  */
-int sm_host_init(sm_data_handler_t handler);
+int sm_at_client_init(
+	sm_data_handler_t handler,
+	bool automatic_uart,
+	k_timeout_t inactivity_timeout);
 
-/**@brief Un-initialize Serial Modem Host
+/**@brief Un-initialize Serial Modem AT Client
  */
-int sm_host_uninit(void);
-
-/**
- * @brief Register callback for @kconfig{CONFIG_SM_HOST_INDICATE_PIN} indication
- *
- * @param handler Pointer to a handler function of type @ref sm_ind_handler_t.
- * @param wakeup  Enable/disable System Off wakeup by GPIO Sense.
- *
- * @retval Zero    Success.
- * @retval -EFAULT if @kconfig{CONFIG_SM_HOST_INDICATE_PIN} is not defined.
- */
-int sm_host_register_ind(sm_ind_handler_t handler, bool wakeup);
+int sm_at_client_uninit(void);
 
 /**
- * @brief Toggle power pin of the nRF91 Series device configured with
- * @kconfig{CONFIG_SM_HOST_POWER_PIN}.
+ * @brief Register callback for Ring Indicate (RI) pin.
  *
- * The pin is enabled for the time specified in @kconfig{CONFIG_SM_HOST_POWER_PIN_TIME}
- * and then disabled.
+ * @param handler Pointer to a handler function of type @ref sm_ri_handler_t.
  *
- * @return Zero on success, non-zero otherwise.
+ * @retval Zero on success. Otherwise, a (negative) error code is returned.
  */
-int sm_host_power_pin_toggle(void);
+int sm_at_client_register_ri_handler(sm_ri_handler_t handler);
+
+/**
+ * @brief Configure automatic DTR UART handling
+ *
+ * If automatic DTR UART handling is enabled, the library will enable DTR UART when RI
+ * signal is detected, and disable it after inactivity timeout.
+ *
+ * @param automatic If true, DTR UART is automatically managed by the library.
+ * @param inactivity Inactivity timeout for DTR UART disablement. Only used if @p
+ * automatic is true.
+ */
+void sm_at_client_configure_dtr_uart(bool automatic, k_timeout_t inactivity);
+
+/**
+ * @brief Disable DTR UART
+ *
+ * Disables DTR UART. Disables automatic DTR UART handling.
+ */
+void sm_at_client_disable_dtr_uart(void);
+
+/** @brief Enable DTR UART
+ *
+ * Enables DTR UART. Disables automatic DTR UART handling.
+ */
+void sm_at_client_enable_dtr_uart(void);
 
 /**
  * @brief Function to send an AT command in Serial Modem command mode
  *
  * This function wait until command result is received. The response of the AT command is received
- * via the @ref sm_ind_handler_t registered in @ref sm_host_init.
+ * through the sm_ind_handler_t registered in @ref sm_at_client_init.
  *
  * @param command Pointer to null terminated AT command string without command terminator
  * @param timeout Response timeout for the command in seconds, Zero means infinite wait
@@ -110,7 +128,7 @@ int sm_host_power_pin_toggle(void);
  * @retval -EAGAIN if command execution times out.
  * @retval other if command execution fails.
  */
-int sm_host_send_cmd(const char *const command, uint32_t timeout);
+int sm_at_client_send_cmd(const char *const command, uint32_t timeout);
 
 /**
  * @brief Function to send raw data in Serial Modem data mode
@@ -120,7 +138,7 @@ int sm_host_send_cmd(const char *const command, uint32_t timeout);
  *
  * @return Zero on success, non-zero otherwise.
  */
-int sm_host_send_data(const uint8_t *const data, size_t datalen);
+int sm_at_client_send_data(const uint8_t *const data, size_t datalen);
 
 /**
  * @brief Serial Modem monitor callback.
@@ -196,4 +214,4 @@ static inline void sm_monitor_resume(struct sm_monitor_entry *mon)
 
 /** @} */
 
-#endif /* SM_HOST_H_ */
+#endif /* SM_AT_CLIENT_H_ */
