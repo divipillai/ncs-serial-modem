@@ -1,9 +1,9 @@
 .. _SM_AT_commands:
 
-Serial Modem specific AT commands
-#################################
+|SM| AT commands
+################
 
-The application sample uses a series of proprietary AT commands to let the nRF91 development kit operate as a Serial Modem (SM).
+The application sample uses a series of proprietary AT commands to let the nRF91 development kit operate as a |SM| (SM).
 
 The AT Commands have standardized syntax rules.
 
@@ -28,25 +28,24 @@ There are 3 types of AT commands:
 AT responds to all commands with a final response.
 
 See the following subpages for documentation of the proprietary AT commands.
-The modem specific AT commands are documented in the `nRF91x1 AT Commands Reference Guide`_  and `nRF9160 AT Commands Reference Guide`_.
+The modem specific AT commands are documented in the `nRF91x1 AT Commands Reference Guide`_.
 
 .. toctree::
    :maxdepth: 2
    :caption: Subpages:
 
-   Generic_AT_commands
-   CMUX_AT_commands
-   FOTA_AT_commands
-   FTP_AT_commands
-   GNSS_AT_commands
-   GPIO_AT_commands
-   HTTPC_AT_commands
-   ICMP_AT_commands
-   CARRIER_AT_commands
-   MQTT_AT_commands
-   NRFCLOUD_AT_commands
-   PPP_AT_commands
-   SMS_AT_commands
-   SOCKET_AT_commands
-   TCPUDP_AT_commands
-   TWI_AT_commands
+   at_generic
+   at_cmux
+   at_dfu
+   at_fota
+   at_gnss
+   at_httpc
+   at_icmp
+   at_carrier
+   at_mqtt
+   at_nrfcloud
+   at_ppp
+   at_provisioning
+   at_sms
+   at_socket
+   at_trace
