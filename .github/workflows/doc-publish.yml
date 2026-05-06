@@ -19,15 +19,17 @@ jobs:
       - name: Download artifacts
         uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11 # v6
         with:
-          workflow: doc_build.yml
+          workflow: doc-build.yml
           run_id: ${{ github.event.workflow_run.id }}
+          name: docs
+          path: doc
 
       - name: Unzip html archive
         working-directory: doc
         run: |
           OUTDIR=$(awk 'NR==1 { if ($3 ~ /^(latest|PR-[0-9]+|[0-9]+\.[0-9a-zA-Z\.\-]+)$/) print $3 }' monitor_*.txt)
           echo "OUTDIR=$OUTDIR" >> "$GITHUB_ENV"
-          unzip legacy-addon-serial-modem*.zip -d $OUTDIR
+          unzip legacy-addon-serial-modem*.zip -d "$OUTDIR"
           find "$OUTDIR" -type l -delete
 
       - name: Obtain PR number

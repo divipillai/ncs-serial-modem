@@ -44,9 +44,6 @@ concurrency:
 
 jobs:
   doc-build-and-publish:
-    env:
-      ARCHIVE: "addon-serial_modem-${{inputs.documentation_tag}}.zip"
-
     runs-on: ubuntu-latest
 
     permissions:
@@ -72,6 +69,34 @@ jobs:
           sudo tar xf doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz -C /opt
           echo "/opt/doxygen-${DOXYGEN_VERSION}/bin" >> $GITHUB_PATH
 
+      - name: Compute documentation tag
+        id: doc_meta
+        run: |
+          # Manual dispatch honors `documentation_tag`; otherwise mimic the versioning rules below.
+          DOCUMENTATION_TAG='${{ inputs.documentation_tag || '' }}'
+
+          VERSION_REGEX='^v([0-9a-zA-Z\.\-]+)$'
+          if [[ -z "$DOCUMENTATION_TAG" ]] && [[ ${GITHUB_REF#refs/tags/} =~ $VERSION_REGEX ]]; then
+            DOCUMENTATION_TAG="${BASH_REMATCH[1]}"
+          fi
+
+          if [[ -z "$DOCUMENTATION_TAG" ]] && [[ ${GITHUB_REF#refs/heads/} == "main" ]]; then
+            DOCUMENTATION_TAG="latest"
+          fi
+
+          if [[ -z "$DOCUMENTATION_TAG" ]] && [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            DOCUMENTATION_TAG="PR-${{ github.event.pull_request.number }}"
+          fi
+
+          if [[ -z "$DOCUMENTATION_TAG" ]]; then
+            DOCUMENTATION_TAG="latest"
+          fi
+
+          echo "documentation_tag=${DOCUMENTATION_TAG}" >> "$GITHUB_OUTPUT"
+          echo "DOCUMENTATION_TAG=${DOCUMENTATION_TAG}" >> "$GITHUB_ENV"
+          ARCHIVE_NAME="addon-serial_modem-${DOCUMENTATION_TAG}.zip"
+          echo "ARCHIVE_NAME=${ARCHIVE_NAME}" >> "$GITHUB_ENV"
+
       - name: Build documentation
         working-directory: doc
         run: |
@@ -79,14 +104,14 @@ jobs:
           sphinx-build -M html . build
 
           cp custom.properties build/html
-          sed -i 's/__VERSION__/'"${{inputs.documentation_tag}}"'/g' build/html/custom.properties
+          sed -i 's/__VERSION__/'"${DOCUMENTATION_TAG}"'/g' build/html/custom.properties
 
           cp tags.yml build/html
-          sed -i 's/__VERSION__/'"${{inputs.documentation_tag}}"'/g' build/html/tags.yml
+          sed -i 's/__VERSION__/'"${DOCUMENTATION_TAG}"'/g' build/html/tags.yml
 
           cd build/html
 
-          zip -rq "${{env.ARCHIVE}}" .
+          zip -rq "${ARCHIVE_NAME}" .
           ls -lah .
           pwd
 
@@ -97,17 +122,18 @@ jobs:
           if-no-files-found: error
           retention-days: 2
           path: |
-            doc/build/html/${{env.ARCHIVE}}
+            doc/build/html/${{ env.ARCHIVE_NAME }}
 
       - name: Check version
         run: |
+          # Keep `$VERSION` consistent with `monitor_*.txt` line 3 and `DOCUMENTATION_TAG` used in HTML.
           VERSION_REGEX="^v([0-9a-zA-Z\.\-]+)$"
           if [[ ${GITHUB_REF#refs/tags/} =~ $VERSION_REGEX ]]; then
             VERSION=${BASH_REMATCH[1]}
           elif [[ ${GITHUB_REF#refs/heads/} == "main" ]]; then
             VERSION="latest"
           elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            VERSION="pr-${{ github.event.number }}"
+            VERSION="PR-${{ github.event.number }}"
           fi
           echo "VERSION=${VERSION}"
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
