@@ -1,0 +1,686 @@
+.. _SM_AT_gen:
+
+Generic AT commands
+*******************
+
+.. contents::
+   :local:
+   :depth: 2
+
+This page describes generic AT commands.
+
+UART baud rate AT+IPR
+=====================
+
+The ``AT+IPR`` command sets the UART baud rate.
+
+Set command
+-----------
+
+The set command sets the UART baud rate.
+|SM| does not support automatic baud rate detection.
+When the device resets, the baud rate is set to the default value set in the devicetree.
+
+Syntax
+~~~~~~
+
+::
+
+   AT+IPR=<baud_rate>
+
+The ``<baud_rate>`` parameter is an integer value specifying the desired baud rate.
+
+.. note::
+
+   The baud rate change takes effect after the modem responds with ``OK``.
+   The host must switch to the new baud rate to continue communication.
+
+Example
+~~~~~~~
+
+Set the baud rate to 115200.
+
+::
+
+   AT+IPR=115200
+   OK
+
+Read command
+------------
+
+The read command reads the current UART baud rate.
+
+Syntax
+~~~~~~
+
+::
+
+   AT+IPR?
+
+Response syntax
+~~~~~~~~~~~~~~~
+
+::
+
+   +IPR: <baud_rate>
+
+Example
+~~~~~~~
+
+::
+
+   AT+IPR?
+   +IPR: 115200
+   OK
+
+Test command
+------------
+
+The test command lists the supported baud rates.
+
+Syntax
+~~~~~~
+
+::
+
+   AT+IPR=?
+
+Response syntax
+~~~~~~~~~~~~~~~
+
+::
+
+   +IPR: (list of supported autodetectable baud rates)[,(list of fixed-only baud rates)]
+
+Example
+~~~~~~~
+
+::
+
+   AT+IPR=?
+   +IPR: (),(115200,230400,460800,921600,1000000)
+   OK
+
+|SM| echo E0/E1
+===============
+
+The ``E`` command enables or disables the AT command echo feature of the |SM| application.
+
+Set command
+-----------
+
+The set command enables or disables the AT command echo feature.
+While enabled, the |SM| application echoes back all the characters that are received in the AT command mode.
+
+.. note::
+
+   When working with a terminal, you should disable local echo to avoid double echoing of characters.
+
+Syntax
+~~~~~~
+
+::
+
+   ATE1 - Enable AT command echo.
+   ATE0 - Disable AT command echo (default).
+
+Example
+~~~~~~~
+
+Set the AT command echo:
+
+::
+
+   ATE1
+   OK
+
+   AT
+   AT    // Echoed command
+   OK
+
+   ATE0
+   ATE0  // Echoed command
+   OK
+
+   AT
+   OK
+
+Read command
+------------
+
+The read command is not supported.
+
+Test command
+------------
+
+The test command is not supported.
+
+|SM| version #XSMVER
+=====================
+
+The ``#XSMVER`` command return the versions of the |SM| and |NCS| in which the |SM| application is built.
+
+Set command
+-----------
+
+The set command returns the versions of the |SM| and |NCS|.
+
+Syntax
+~~~~~~
+
+::
+
+   AT#XSMVER
+
+Response syntax
+~~~~~~~~~~~~~~~
+
+::
+
+   #XSMVER: <sm_version>,<ncs_version>[,<customer_version>]
+
+The ``<sm_version>`` parameter is the version of the |SM| application.
+
+The ``<ncs_version>`` parameter is a string containing the version of the |NCS|.
+
+The ``<customer_version>`` parameter is the :ref:`CONFIG_SM_CUSTOMER_VERSION <CONFIG_SM_CUSTOMER_VERSION>` string, if defined.
+
+Example
+~~~~~~~
+
+The following command example reads the versions:
+
+::
+
+   // Released build
+   AT#XSMVER
+   #XSMVER: "v0.1.0","3.1.99"
+   OK
+
+   // Development build
+   AT#XSMVER
+   #XSMVER: "v0.1.0-73-g0c2af8c-dirty","3.1.99"
+   OK
+
+   // Released build with customer version
+   AT#XSMVER
+   #XSMVER: "v0.1.0","3.1.99","Onomondo 2.1.0"
+   OK
+
+Read command
+------------
+
+The read command is not supported.
+
+Test command
+------------
+
+The test command is not supported.
+
+SM proprietary command list #XCLAC
+==================================
+
+The ``#XCLAC`` command requests the list of the proprietary |SM| commands.
+
+Set command
+-----------
+
+The set command requests the list of the proprietary |SM| commands.
+It is an add-on for ``AT+CLAC``, which lists all modem AT commands.
+
+Syntax
+~~~~~~
+
+::
+
+   AT#XCLAC
+
+Response syntax
+~~~~~~~~~~~~~~~
+
+::
+
+   <command list>
+
+The ``<command list>`` parameter returns a list of values representing all the ``#X*`` commands followed by <CR><LF>.
+
+Example
+~~~~~~~
+
+::
+
+   AT#XCLAC
+   AT#XSMVER
+   AT#XSLEEP
+   AT#XCLAC
+   AT#XSOCKET
+   AT#XBIND
+   AT#XCONNECT
+   AT#XSEND
+   AT#XRECV
+   AT#XSENDTO
+   AT#XRECVFROM
+   AT#XPING
+   AT#XGNSS
+   OK
+
+Read command
+------------
+
+The read command is not supported.
+
+Test command
+------------
+
+The test command is not supported.
+
+.. include:: sm_data_mode.rst
+   :start-after: sm_data_mode_at_cmd_start
+   :end-before: sm_data_mode_at_cmd_end
+
+Power saving #XSLEEP
+====================
+
+The ``#XSLEEP`` command makes the |SM| application to enter idle or sleep mode.
+
+.. note::
+
+   The ``#XSLEEP`` command is intended for experimentation and power consumption measurements and must not be used in production.
+
+   You can use the DTR (Data Terminal Ready) and RI (Ring Indicator) signals to control the power state of the UART between the |SM| and the host.
+   See the :ref:`uart_configuration` section for more information about DTR and RI.
+
+.. note::
+
+   If you want to do power measurements on the nRF91 Series development kit while running the |SM| application, remember to disable unused peripherals.
+
+
+Set command
+-----------
+
+The set command makes the |SM| application enter either Idle or Sleep mode.
+
+Syntax
+~~~~~~
+
+::
+
+   AT#XSLEEP=<sleep_mode>
+
+The ``<sleep_mode>`` parameter accepts only the following integer values:
+
+* ``1`` - Enter Sleep.
+  In this mode, both the |SM| service and the LTE connection are terminated.
+
+  |SM| can be woken up using the DTR pin (``dtr-gpios``).
+
+* ``2`` - Enter Idle.
+  In this mode, both the |SM| service and the LTE connection are maintained, but the UART is disabled to save power.
+  Received data is buffered and sent to the host after idle mode is exited.
+
+  |SM| can exit the idle mode using the DTR pin (``dtr-gpios``).
+  When the |SM| is in idle mode, and there is data to be read by the host, the RI pin (``ri-gpios``) is asserted for a short period of time to notify the host.
+  The host can then deassert and assert DTR to exit idle mode and read the data.
+
+The DTR pin is defined either in the :file:`boards/*_ns.overlay` overlay file matching your board or in the :file:`overlay-external-mcu.overlay` overlay file, if it is included.
+
+.. note::
+
+   * If the modem is on, entering Sleep mode (by issuing ``AT#XSLEEP=1`` ) sends a ``+CFUN=0`` command to the modem, which causes a write to non-volatile memory (NVM).
+     Take the NVM wear into account, or put the modem in flight mode by issuing ``AT+CFUN=4`` before Sleep mode.
+
+Examples
+~~~~~~~~
+
+::
+
+   AT#XSLEEP=0
+   ERROR
+
+::
+
+   AT#XSLEEP=1
+   OK
+
+See the following for an example of when the modem is on:
+
+::
+
+   AT+CFUN=4
+   OK
+
+   AT#XSLEEP=1
+   OK
+
+::
+
+   AT#XSLEEP=2
+   OK
+
+Read command
+------------
+
+The read command is not supported.
+
+Test command
+------------
+
+The test command tests the existence of the AT command and provides information about the type of its subparameters.
+
+Syntax
+~~~~~~
+
+::
+
+   AT#XSLEEP=?
+
+Response syntax
+~~~~~~~~~~~~~~~
+
+::
+
+   #XSLEEP: <list of shutdown_mode>
+
+Example
+~~~~~~~
+
+::
+
+   AT#XSLEEP=?
+   #XSLEEP: (1,2)
+   OK
+
+Power off #XSHUTDOWN
+====================
+
+The ``#XSHUTDOWN`` command makes the nRF91 Series SiP enter System OFF mode, which is the deepest power saving mode.
+
+Set command
+-----------
+
+The set command makes the nRF91 Series SiP enter System OFF mode.
+
+Syntax
+~~~~~~
+
+::
+
+   AT#XSHUTDOWN
+
+.. note::
+
+   In this case the nRF91 Series SiP cannot be woken up using the DTR pin (``dtr-gpios``).
+
+Example
+~~~~~~~~
+
+::
+
+   AT#XSHUTDOWN
+   OK
+
+
+Read command
+------------
+
+The read command is not supported.
+
+Test command
+------------
+
+The test command is not supported.
+
+Reset #XRESET
+=============
+
+The ``#XRESET`` command performs a soft reset of the nRF91 Series SiP.
+
+Set command
+-----------
+
+The set command resets the nRF91 Series SiP.
+
+Syntax
+~~~~~~
+
+::
+
+   AT#XRESET
+
+Example
+~~~~~~~~
+
+::
+
+   AT#XRESET
+   OK
+   Ready
+
+Read command
+------------
+
+The read command is not supported.
+
+Test command
+------------
+
+The test command is not supported.
+
+Modem reset #XMODEMRESET
+========================
+
+The ``#XMODEMRESET`` command performs a reset of the modem.
+
+The modem is set to minimal function mode (via ``+CFUN=0``) before being reset.
+The |SM| application is not restarted.
+After the command returns, the modem will be in minimal function mode.
+
+Set command
+-----------
+
+The set command resets the modem.
+
+Syntax
+~~~~~~
+
+::
+
+   AT#XMODEMRESET
+
+Response syntax
+~~~~~~~~~~~~~~~
+
+::
+
+   #XMODEMRESET: <result>[,<error_code>]
+
+* The ``<result>`` parameter is an integer indicating the result of the command.
+  It can have the following values:
+
+  * ``0`` - Success.
+  * *Positive value* - On failure, indicates the step that failed.
+
+* The ``<error_code>`` parameter is an integer.
+  It is only printed when the modem reset was not successful and is the error code indicating the reason for the failure.
+
+Example
+~~~~~~~~
+
+::
+
+   AT#XMODEMRESET
+
+   #XMODEMRESET: 0
+
+   OK
+
+Read command
+------------
+
+The read command is not supported.
+
+Test command
+------------
+
+The test command is not supported.
+
+Device UUID #XUUID
+==================
+
+The ``#XUUID`` command requests the device UUID.
+
+Set command
+-----------
+
+The set command returns the device UUID.
+
+Syntax
+~~~~~~
+
+::
+
+   AT#XUUID
+
+Response syntax
+~~~~~~~~~~~~~~~
+
+::
+
+   #XUUID: <device-uuid>
+
+The ``<device-uuid>`` parameter returns a string indicating the UUID of the device.
+
+Example
+~~~~~~~
+
+::
+
+  AT#XUUID
+
+  #XUUID: 50503041-3633-4261-803d-1e2b8f70111a
+
+  OK
+
+Read command
+------------
+
+The read command is not supported.
+
+Test command
+------------
+
+The test command is not supported.
+
+MCUboot bootloader info #XBOOTINFO
+==================================
+
+Query information about the MCUboot second-stage bootloader.
+
+This command is only available when the firmware is built with the NSIB (B0) and MCUboot as a second-stage bootloader.
+
+Set command
+-----------
+
+::
+
+   AT#XBOOTINFO=<op>
+
+* ``<op>`` - Operation to perform:
+
+  * ``0`` - Query the firmware version of the active MCUboot slot.
+  * ``1`` - Query which MCUboot bank is currently active.
+
+Response syntax
+~~~~~~~~~~~~~~~
+
+::
+
+   #XBOOTINFO: <value>
+
+* When ``<op>`` is ``0`` - ``<value>`` is an unsigned integer representing ``fw_info.version`` of the active MCUboot slot, set at build time using ``CONFIG_FW_INFO_FIRMWARE_VERSION`` and used by NSIB as a downgrade-protection counter.
+* When ``<op>`` is ``1`` - ``<value>`` is ``0`` if bank ``s0`` is active and ``1`` if bank ``s1`` is active.
+
+Examples
+~~~~~~~~
+
+Query the firmware version of the active MCUboot slot::
+
+   AT#XBOOTINFO=0
+
+   #XBOOTINFO: 1
+
+   OK
+
+Query the active MCUboot slot::
+
+   AT#XBOOTINFO=1
+
+   #XBOOTINFO: 0
+
+   OK
+
+Test command
+------------
+
+::
+
+   AT#XBOOTINFO=?
+
+Response syntax
+~~~~~~~~~~~~~~~
+
+::
+
+   #XBOOTINFO: (0,1)
+
+Example
+~~~~~~~
+
+::
+
+   AT#XBOOTINFO=?
+   #XBOOTINFO: (0,1)
+   OK
+
+Modem fault #XMODEM
+===================
+
+The application monitors the modem status.
+When the application detects a *modem fault*, it sends the ``#XMODEM`` unsolicited notification.
+
+Unsolicited notification
+------------------------
+
+The application sends the following unsolicited notification when it detects a modem fault:
+
+::
+
+   #XMODEM: FAULT,<reason>,<program_count>
+
+The ``<reason>`` parameter returns a hexadecimal integer indicating the reason of the modem fault.
+The ``<program_count>`` parameter returns a hexadecimal integer indicating the address of the modem fault.
+
+The application sends the following unsolicited notification when it shuts down libmodem:
+
+::
+
+   #XMODEM: SHUTDOWN,<result>
+
+The ``<result>`` parameter returns an integer indicating the result of the shutdown of libmodem.
+
+The application sends the following unsolicited notification when it re-initializes libmodem:
+
+::
+
+   #XMODEM: INIT,<result>
+
+The ``<result>`` parameter returns an integer indicating the result of the re-initialization of libmodem.
+
+.. note::
+   After libmodem is re-initialized, the MCU side must restart the current active service as follows:
+
+   1. Stopping the service.
+      For example, disconnecting the TCP connection and closing the socket.
+   #. Connecting again using LTE.
+   #. Restarting the service.
+      For example, opening the socket and re-establishing the TCP connection.

@@ -1,42 +1,41 @@
 .. _sm_data_mode:
 
-Running in data mode
-####################
+Data mode
+#########
 
 .. contents::
    :local:
    :depth: 2
 
-The Serial Modem (SM) application can run in the two operation modes defined by the AT command set: AT-command mode and data mode.
+The |SM| (SM) application can run in the two operation modes defined by the AT command set: AT-command mode and data mode.
 
 When running in data mode, the application does the following:
 
 * It considers all the data received from the MCU over the UART bus as arbitrary data to be streamed through the LTE network by various service modules.
-* It considers all the data streamed from a remote service as arbitrary data to be sent to the MCU over the UART bus.
+* It buffers the URCs received from modem and threads and sends them to the MCU only after exiting data mode.
+* For the socket that is in data mode with automatic data reception, the data streamed from a remote service is considered binary data to be sent to the MCU over the UART.
 
 Overview
 ********
 
 You can manually switch between AT-command mode and data mode.
-However, the Serial Modem data mode is applied automatically while using the following modules:
+However, the |SM| data mode is applied automatically when any of the following AT commands are issued:
 
-* Socket ``send()`` and ``sendto()``
-* TCP/TLS proxy send
-* UDP/DTLS proxy send
-* FTP put, uput and mput
-* MQTT publish
-* HTTP request
-* GNSS nRF Cloud send message
-* LwM2M carrier library app data send
+* Socket ``AT#XSEND`` and ``AT#XSENDTO``
+* MQTT publish ``AT#XMQTTPUB``
+* nRF Cloud send message ``AT#XNRFCLOUD``
+* DFU write ``AT#XDFUWRITE``
+* LwM2M carrier library app data send ``AT#XCARRIER``
 
 Entering data mode
 ==================
 
-The Serial Modem application enters data mode when an AT command to send data out does not carry the payload.
+The |SM| application enters data mode when an AT command to send data out does not carry the payload.
 See the following examples:
 
-* ``AT#XSEND`` makes Serial Modem enter data mode to receive arbitrary data to transmit.
-* ``AT#XSEND="data"`` makes Serial Modem transmit data in normal AT Command mode.
+* ``AT#XSEND=0,2,0`` makes |SM| enter data mode to receive arbitrary data to transmit for socket 0.
+* ``AT#XSEND=0,2,0,<data_len>`` makes |SM| enter data mode to receive arbitrary data of the specified length to transmit for socket 0.
+* ``AT#XSEND=0,0,0,"data"`` makes |SM| transmit data in normal AT Command mode for socket 0.
 
 .. note::
    If the data contains either  ``,`` or ``"`` as characters, it can only be sent in data mode.
@@ -44,55 +43,46 @@ See the following examples:
 
 Other examples:
 
-* ``AT#XTCPSEND``
-* ``AT#XUDPSEND``
-* ``AT#XFTP="put",<file>``
-* ``AT#XFTP="uput"``
-* ``AT#XFTP="mput",<file>``
 * ``AT#XMQTTPUB=<topic>,"",<qos>,<retain>``
 * ``AT#XNRFCLOUD=2``
+* ``AT#XDFUWRITE=0,0,4096``
 * ``AT#XCARRIER="app_data_set"``
 
-The Serial Modem application sends an *OK* response when it successfully enters data mode.
+The |SM| application sends an *OK* response when it successfully enters data mode.
 
 Sending data in data mode
 =========================
 
 Any arbitrary data received from the MCU is sent to LTE network *as-is*.
 
-If the current sending function succeeds and :ref:`CONFIG_SM_DATAMODE_URC <CONFIG_SM_DATAMODE_URC>` is defined, the Serial Modem application reports back the total size as ``#XDATAMODE: <size>``.
-The ``<size>`` value is a positive integer.
-This Unsolicited Result Code (URC) can also be used to impose flow control on uplink sending.
-
 .. note::
-  If the sending operation fails due to a network problem while in data mode, the Serial Modem application moves to a state where the data received from UART is dropped until the MCU sends the termination command :ref:`CONFIG_SM_DATAMODE_TERMINATOR <CONFIG_SM_DATAMODE_TERMINATOR>`.
+   If the sending operation fails due to a network problem while in data mode, the |SM| application moves to a state where the data received from UART is dropped until the MCU sends the termination command :ref:`CONFIG_SM_DATAMODE_TERMINATOR <CONFIG_SM_DATAMODE_TERMINATOR>`.
 
 Exiting data mode
 =================
 
-To exit the data mode, the MCU sends the termination command set by the :ref:`CONFIG_SM_DATAMODE_TERMINATOR <CONFIG_SM_DATAMODE_TERMINATOR>` configuration option over UART.
+To exit the data mode without the specification of ``<data_len>``, the MCU sends the termination command set by the :ref:`CONFIG_SM_DATAMODE_TERMINATOR <CONFIG_SM_DATAMODE_TERMINATOR>` configuration option over UART.
 
 The pattern string could be sent alone or as an affix to the data.
 The pattern string must be sent in full.
 
-When exiting the data mode, the Serial Modem application sends the ``#XDATAMODE`` unsolicited notification.
+If ``<data_len>`` is specified in the AT command and the specified data length is reached, the |SM| application exits data mode. Termination command is not used in this case.
 
-After exiting the data mode, the Serial Modem application returns to the AT command mode.
+When exiting the data mode, the |SM| application sends the ``#XDATAMODE`` unsolicited notification.
+
+After exiting the data mode, the |SM| application returns to the AT command mode.
 
 .. note::
-  The Serial Modem application sends the termination string :ref:`CONFIG_SM_DATAMODE_TERMINATOR <CONFIG_SM_DATAMODE_TERMINATOR>` and moves to a state where the data received on the UART is dropped in the following scenarios:
+   The |SM| application sends the termination string :ref:`CONFIG_SM_DATAMODE_TERMINATOR <CONFIG_SM_DATAMODE_TERMINATOR>` and moves to a state where the data received on the UART is dropped in the following scenarios:
 
-  * The TCP server is stopped due to an error.
-  * The remote server disconnects the TCP client.
-  * The TCP client disconnects from the remote server due to an error.
-  * The UDP client disconnects from the remote server due to an error.
+   * The socket in data mode encounters an error.
 
-  For Serial Modem to stop dropping the data received from UART and move to AT-command mode, the MCU needs to send the termination command :ref:`CONFIG_SM_DATAMODE_TERMINATOR <CONFIG_SM_DATAMODE_TERMINATOR>` back to the Serial Modem application.
+   For |SM| to stop dropping the data received from UART and move to AT-command mode, the MCU needs to send the termination command :ref:`CONFIG_SM_DATAMODE_TERMINATOR <CONFIG_SM_DATAMODE_TERMINATOR>` back to the |SM| application.
 
 Triggering the transmission
 ===========================
 
-The Serial Modem application buffers all the arbitrary data received from the UART bus before initiating the transmission.
+The |SM| application buffers all the arbitrary data received from the UART bus before initiating the transmission.
 
 The transmission of the buffered data to the LTE network is triggered in the following scenarios:
 
@@ -101,13 +91,13 @@ The transmission of the buffered data to the LTE network is triggered in the fol
 * Filling of the data mode buffer.
 
 If there is no time limit configured, the minimum required value applies.
-For more information, see the `Data mode control #XDATACTRL`_  command.
+For more information, see the :ref:`sm_data_mode_ctrl` command.
 
 Flow control in data mode
 =========================
 
-When Serial Modem fills its UART receive buffers, it disables UART reception. If ``hw-flow-control`` is enabled for the UART, hardware flow control is imposed. Without hardware flow control, the Serial Modem application will drop incoming data while the UART reception is disabled.
-Serial Modem reenables UART reception when the data has been moved to the data mode buffer.
+When |SM| fills its UART receive buffers, it disables UART reception. If ``hw-flow-control`` is enabled for the UART, hardware flow control is imposed. Without hardware flow control, the |SM| application will drop incoming data while the UART reception is disabled.
+|SM| reenables UART reception when the data has been moved to the data mode buffer.
 If the data mode buffer fills, the data are transmitted to the LTE network.
 
 .. note::
@@ -131,13 +121,6 @@ CONFIG_SM_DATAMODE_TERMINATOR - Pattern string to terminate data mode
    This option specifies a pattern string to terminate data mode.
    The default pattern string is ``+++``.
 
-.. _CONFIG_SM_DATAMODE_URC:
-
-CONFIG_SM_DATAMODE_URC - Send URC in data mode
-   This option reports the result of the previous data-sending operation while the Serial Modem application remains in data mode.
-   The MCU could use this URC for application-level uplink flow control.
-   It is not selected by default.
-
 .. _CONFIG_SM_DATAMODE_BUF_SIZE:
 
 CONFIG_SM_DATAMODE_BUF_SIZE - Buffer size for data mode
@@ -148,6 +131,9 @@ Data mode AT commands
 *********************
 
 The following command list describes data mode-related AT commands.
+
+.. _sm_data_mode_ctrl:
+.. _sm_data_mode_at_cmd_start:
 
 Data mode control #XDATACTRL
 ============================
@@ -167,7 +153,7 @@ Syntax
 
 ::
 
-   #XDATACTRL=<time_limit>
+   AT#XDATACTRL=<time_limit>
 
 * The ``<time_limit>`` parameter sets the timeout value in milliseconds.
   The default value is the minimum required value, based on the configured UART baud rate.
@@ -183,7 +169,7 @@ Syntax
 
 ::
 
-   #XDATACTRL?
+   AT#XDATACTRL?
 
 Response syntax
 ~~~~~~~~~~~~~~~
@@ -202,7 +188,7 @@ Syntax
 
 ::
 
-   #XDATACTRL=?
+   AT#XDATACTRL=?
 
 Response syntax
 ~~~~~~~~~~~~~~~
@@ -223,16 +209,22 @@ Unsolicited notification
 
    #XDATAMODE: <status>
 
-The ``<status>`` value ``0`` indicates that the data mode operation was successful.
-A negative value indicates the error code of the failing operation.
+* The ``<status>`` parameter is an integer that indicates the status of the data mode operation.
+  It can have one of the following values:
+
+  * ``0`` - Success
+  * ``-1`` - Failure
 
 Example
 ~~~~~~~
 
 ::
 
-   AT#XSEND
+   AT#XSEND=0,2,0
+
    OK
-   Test TCP datamode
+   Test datamode
    +++
    #XDATAMODE: 0
+
+.. _sm_data_mode_at_cmd_end:
