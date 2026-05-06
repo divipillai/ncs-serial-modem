@@ -44,17 +44,34 @@ jobs:
           printf 'PR=%s\n' "$PR" >> "$GITHUB_ENV"
 
       - name: Upload to Azure storage
-        working-directory: doc
         env:
           AZCOPY_CONCURRENCY_VALUE: 1024
           NCS_DOC_SAS_PRS: ${{ secrets.NCS_DOC_SAS_PRS }}
           NCS_DOC_SAS_MAIN: ${{ secrets.NCS_DOC_SAS_MAIN }}
         run: |
-          if [[ "${{ github.event.workflow_run.event }}" == "pull_request" ]]; then
-            azcopy cp $OUTDIR "${{ vars.NCS_DOC_PR_STORAGE_URL }}addons/serial-modem?$NCS_DOC_SAS_PRS" --recursive=true
-          else
-            azcopy cp $OUTDIR "${{ vars.NCS_DOC_STORAGE_URL }}addons/serial-modem?$NCS_DOC_SAS_MAIN" --recursive=true
+          set -euo pipefail
+          SRC="${GITHUB_WORKSPACE}/doc/${OUTDIR}"
+          if [[ ! -d "$SRC" ]]; then
+            echo "::error::Upload source missing: ${SRC}"
+            ls -la "${GITHUB_WORKSPACE}/doc" || true
+            exit 1
           fi
+          if [[ "${{ github.event.workflow_run.event }}" == "pull_request" ]]; then
+            BASE="${{ vars.NCS_DOC_PR_STORAGE_URL }}"
+            SAS="${NCS_DOC_SAS_PRS:-}"
+          else
+            BASE="${{ vars.NCS_DOC_STORAGE_URL }}"
+            SAS="${NCS_DOC_SAS_MAIN:-}"
+          fi
+          # AzCopy treats non-https targets as local paths. Empty BASE yields "addons/serial-modem?..." and Local/Local errors.
+          if [[ -z "$BASE" ]] || [[ "$BASE" != http://* && "$BASE" != https://* ]]; then
+            echo "::error::Blob base URL missing or invalid. Set vars.NCS_DOC_STORAGE_URL (push) or vars.NCS_DOC_PR_STORAGE_URL (PR) to e.g. https://<account>.blob.core.windows.net/<container>/"
+            exit 1
+          fi
+          BASE="${BASE%/}/"
+          DEST="${BASE}addons/serial-modem?${SAS}"
+          echo "Uploading to blob prefix ${BASE}addons/serial-modem"
+          azcopy copy "$SRC" "$DEST" --recursive --from-to LocalBlob
 
       - name: Find Comment
         if: ${{ github.event.workflow_run.event == 'pull_request' }}
