@@ -66,6 +66,7 @@ jobs:
             texlive-latex-extra \
             texlive-fonts-recommended \
             fonts-liberation
+            fonts-noto-serif
 
       - name: Install Python dependencies
         working-directory: doc
