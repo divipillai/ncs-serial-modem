@@ -59,7 +59,8 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3 python3-pip texlive-latex-base texlive-latex-extra latexmk
+          sudo apt-get install -y \
+            python3 python3-pip texlive-latex-base texlive-latex-extra latexmk \
             latexmk \
             texlive-xetex \
             texlive-latex-recommended \
@@ -84,7 +85,7 @@ jobs:
         run: |
           doxygen
           sphinx-build -M html . build
-          make -C doc latexpdf BUILDDIR=build
+          make latexpdf BUILDDIR=build
 
           cp custom.properties build/html
           sed -i 's/__VERSION__/'"${{inputs.documentation_tag}}"'/g' build/html/custom.properties
