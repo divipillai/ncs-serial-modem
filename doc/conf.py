@@ -42,6 +42,23 @@ html_theme_options = {
 
 html_extra_path = ['versions.json']
 
+# -- Options for LaTeX/PDF output --------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-latex-output
+
+latex_engine = 'xelatex'
+
+latex_documents = [
+    ('index', 'ncs-serial-modem.tex', 'ncs-serial-modem Documentation',
+     'Nordic Semiconductor', 'manual'),
+]
+
+latex_elements = {
+    'preamble': r"""
+\newif\ifincludeextra
+\includeextrafalse
+""",
+}
+
 ## -- Options for Breathe ----------------------------------------------------
 # https://breathe.readthedocs.io/en/latest/index.html
 #

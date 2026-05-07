@@ -301,6 +301,10 @@ Example
 
   OK
 
+.. raw:: latex
+
+   \ifincludeextra
+
 Delete GNSS data
 ================
 
@@ -379,3 +383,7 @@ Example
   #XGNSSDEL: <mask>
 
   OK
+
+.. raw:: latex
+
+   \fi
