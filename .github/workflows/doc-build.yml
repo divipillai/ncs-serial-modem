@@ -84,7 +84,7 @@ jobs:
         run: |
           doxygen
           sphinx-build -M html . build
-          sphinx-build -M latexpdf . build
+          make -C doc latexpdf BUILDDIR=build
 
           cp custom.properties build/html
           sed -i 's/__VERSION__/'"${{inputs.documentation_tag}}"'/g' build/html/custom.properties
