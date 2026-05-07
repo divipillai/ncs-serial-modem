@@ -41,19 +41,6 @@ jobs:
           fi
           printf 'PR=%s\n' "$PR" >> "$GITHUB_ENV"
 
-      - name: Upload to Azure storage
-        working-directory: doc
-        env:
-          AZCOPY_CONCURRENCY_VALUE: 1024
-          NCS_DOC_SAS_PRS: ${{ secrets.NCS_DOC_SAS_PRS }}
-          NCS_DOC_SAS_MAIN: ${{ secrets.NCS_DOC_SAS_MAIN }}
-        run: |
-          if [[ "${{ github.event.workflow_run.event }}" == "pull_request" ]]; then
-            azcopy cp $OUTDIR "${{ vars.NCS_DOC_PR_STORAGE_URL }}addons/serial-modem?$NCS_DOC_SAS_PRS" --recursive=true
-          else
-            azcopy cp $OUTDIR "${{ vars.NCS_DOC_STORAGE_URL }}addons/serial-modem?$NCS_DOC_SAS_MAIN" --recursive=true
-          fi
-
       - name: Find Comment
         if: ${{ github.event.workflow_run.event == 'pull_request' }}
         uses: peter-evans/find-comment@3eae4d37986fb5a8592848f6a574fdf654e61f9e # v3
