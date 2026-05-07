@@ -27,6 +27,7 @@ extensions = [
     'breathe',
     'sphinx_tabs.tabs',
     'sphinx_togglebutton',
+    'sphinxcontrib.rsvgconverter',
 ]
 
 templates_path = ['_templates']

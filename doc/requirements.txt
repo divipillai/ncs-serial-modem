@@ -3,4 +3,5 @@ breathe==4.35.0
 sphinx-ncs-theme<1.1
 sphinx-tabs>=3.4
 sphinx-togglebutton>=0.3.2
+sphinxcontrib-svg2pdfconverter>=1.2.2
 Pillow>=9.0.1
