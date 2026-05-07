@@ -65,7 +65,6 @@ jobs:
             texlive-latex-recommended \
             texlive-latex-extra \
             texlive-fonts-recommended \
-            texlive-fonts-liberation \
             fonts-liberation
 
       - name: Install Python dependencies
