@@ -56,6 +56,8 @@ latex_elements = {
     'preamble': r"""
 \newif\ifincludeextra
 \includeextrafalse
+\usepackage{fontspec}
+\setmainfont{Liberation Serif}
 """,
 }
 
