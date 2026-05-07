@@ -52,15 +52,6 @@ latex_documents = [
      'Nordic Semiconductor', 'manual'),
 ]
 
-latex_elements = {
-    'preamble': r"""
-\newif\ifincludeextra
-\includeextrafalse
-\usepackage{fontspec}
-\setmainfont{Liberation Serif}
-""",
-}
-
 ## -- Options for Breathe ----------------------------------------------------
 # https://breathe.readthedocs.io/en/latest/index.html
 #
