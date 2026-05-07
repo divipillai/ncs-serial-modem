@@ -66,7 +66,7 @@ jobs:
             texlive-latex-extra \
             texlive-fonts-recommended \
             fonts-liberation \
-            fonts-noto-serif
+            fonts-noto-serif || sudo apt-get install -y fonts-noto
 
       - name: Install Python dependencies
         working-directory: doc
