@@ -86,7 +86,6 @@ jobs:
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
 
       - name: Prepare Azure upload
-        working-directory: doc
         run: |
           PUBLISH="$PWD/publish"
           mkdir -p "$PUBLISH"
@@ -103,7 +102,7 @@ jobs:
             echo "publish2 main ${VERSION} ${ARCHIVE}" > "${MONITOR}"
           fi
 
-          pushd "build/html"
+          pushd "doc/build/html"
           zip -rq "${ARCHIVE}" .
           mv "${ARCHIVE}" "$PUBLISH"
           popd
@@ -113,12 +112,11 @@ jobs:
 
       - name: Prepare Zoomin upload
         if: ${{ github.event_name == 'push' }}
-        working-directory: doc
         run: |
           PUBLISH="$PWD/publish"
           mkdir -p "$PUBLISH"
 
-          OUTDIR=build/html
+          OUTDIR=doc/build/html
           ARCHIVE="addon-serial_modem_$VERSION.zip"
 
           cp custom.properties "$OUTDIR/custom.properties"
