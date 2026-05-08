@@ -21,8 +21,6 @@ jobs:
         with:
           workflow: doc-build.yml
           run_id: ${{ github.event.workflow_run.id }}
-          name: docs
-          path: doc
 
       - name: Unzip html archive
         working-directory: docs
