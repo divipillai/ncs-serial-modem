@@ -43,61 +43,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  doc-build-and-publish:
-    env:
-      ARCHIVE: "addon-serial_modem-${{inputs.documentation_tag}}.zip"
-
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-
+  build:
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3 python3-pip
-
-      - name: Install Python dependencies
-        working-directory: doc
-        run: |
-          python3 -m pip install -r requirements.txt
-
-      - name: Install Doxygen
+      - name: Install system dependencies
         run: |
           wget --no-verbose "https://github.com/doxygen/doxygen/releases/download/Release_${DOXYGEN_VERSION//./_}/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
           sudo tar xf doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz -C /opt
           echo "/opt/doxygen-${DOXYGEN_VERSION}/bin" >> $GITHUB_PATH
 
-      - name: Build documentation
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: 3.12
+          cache: pip
+          cache-dependency-path: doc/requirements.txt
+          pip-install: |
+            -r doc/requirements.txt
+
+      - name: Build
         working-directory: doc
         run: |
           doxygen
           sphinx-build -M html . build
-
-          cp custom.properties build/html
-          sed -i 's/__VERSION__/'"${{inputs.documentation_tag}}"'/g' build/html/custom.properties
-
-          cp tags.yml build/html
-          sed -i 's/__VERSION__/'"${{inputs.documentation_tag}}"'/g' build/html/tags.yml
-
-          cd build/html
-
-          zip -rq "${{env.ARCHIVE}}" .
-          ls -lah .
-          pwd
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: doc-build
-          if-no-files-found: error
-          retention-days: 2
-          path: |
-            doc/build/html/${{env.ARCHIVE}}
 
       - name: Check version
         run: |
@@ -113,8 +86,8 @@ jobs:
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
 
       - name: Prepare Azure upload
+        working-directory: doc
         run: |
-
           PUBLISH="$PWD/publish"
           mkdir -p "$PUBLISH"
 
@@ -122,15 +95,15 @@ jobs:
 
           # Create documentation upload files
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            ARCHIVE="legacy-addon-serial-modem-pr-${{ github.event.number }}.zip"
+            ARCHIVE="legacy-addon-serial_modem-pr-${{ github.event.number }}.zip"
             echo "publish2 dev PR-${{ github.event.number }} ${ARCHIVE}" > "${MONITOR}"
             echo "${{ github.event.number }}" > pr.txt
           else
-            ARCHIVE="legacy-addon-serial-modem-${VERSION}.zip"
+            ARCHIVE="legacy-addon-serial_modem-${VERSION}.zip"
             echo "publish2 main ${VERSION} ${ARCHIVE}" > "${MONITOR}"
           fi
 
-          pushd "doc/build/html"
+          pushd "build/html"
           zip -rq "${ARCHIVE}" .
           mv "${ARCHIVE}" "$PUBLISH"
           popd
@@ -138,9 +111,30 @@ jobs:
           mv "${MONITOR}" "$PUBLISH"
           if [[ -f pr.txt ]]; then mv pr.txt "$PUBLISH"; fi
 
+      - name: Prepare Zoomin upload
+        if: ${{ github.event_name == 'push' }}
+        working-directory: doc
+        run: |
+          PUBLISH="$PWD/publish"
+          mkdir -p "$PUBLISH"
+
+          OUTDIR=build/html
+          ARCHIVE="addon-serial_modem_$VERSION.zip"
+
+          cp custom.properties "$OUTDIR/custom.properties"
+          sed -i 's/__VERSION__/'"$VERSION"'/g' "$OUTDIR/custom.properties"
+
+          cp tags.yml "$OUTDIR/tags.yml"
+          sed -i 's/__VERSION__/'"$VERSION"'/g' "$OUTDIR/tags.yml"
+
+          pushd "$OUTDIR"
+          zip -rq "$ARCHIVE" .
+          mv "$ARCHIVE" "$PUBLISH"
+          popd
+
       - name: Store
         if: ${{ !contains(github.event.pull_request.labels.*.name, 'external') || contains(github.event.pull_request.labels.*.name, 'CI-trusted-author') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: docs
           retention-days: 5
