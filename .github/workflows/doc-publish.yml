@@ -13,7 +13,7 @@ on:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Download artifacts
@@ -25,21 +25,61 @@ jobs:
           path: doc
 
       - name: Unzip html archive
-        working-directory: doc
+        working-directory: docs
         run: |
           OUTDIR=$(awk 'NR==1 { if ($3 ~ /^(latest|PR-[0-9]+|[0-9]+\.[0-9a-zA-Z\.\-]+)$/) print $3 }' monitor_*.txt)
           echo "OUTDIR=$OUTDIR" >> "$GITHUB_ENV"
-          unzip legacy-addon-serial-modem*.zip -d "$OUTDIR"
+          unzip legacy-addon-serial_modem*.zip -d $OUTDIR
           find "$OUTDIR" -type l -delete
 
       - name: Obtain PR number
         if: ${{ github.event.workflow_run.event == 'pull_request' }}
-        working-directory: doc
+        working-directory: docs
         run: |
           if [ -f pr.txt ]; then
             PR=$(head -n 1 pr.txt | tr -cd '0-9')
           fi
           printf 'PR=%s\n' "$PR" >> "$GITHUB_ENV"
+
+      - name: Upload to Azure storage
+        working-directory: docs
+        env:
+          AZCOPY_CONCURRENCY_VALUE: 1024
+          NCS_DOC_SAS_PRS: ${{ secrets.NCS_DOC_SAS_PRS }}
+          NCS_DOC_SAS_MAIN: ${{ secrets.NCS_DOC_SAS_MAIN }}
+        run: |
+          if [[ "${{ github.event.workflow_run.event }}" == "pull_request" ]]; then
+            azcopy cp $OUTDIR "${{ vars.NCS_DOC_PR_STORAGE_URL }}addon-serial_modem?$NCS_DOC_SAS_PRS" --recursive=true
+          else
+            azcopy cp $OUTDIR "${{ vars.NCS_DOC_STORAGE_URL }}addon-serial_modem?$NCS_DOC_SAS_MAIN" --recursive=true
+          fi
+
+      - name: Upload Zoomin documentation
+        if: >
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == github.repository
+        env:
+          NCS_ZOOMIN_KEY: ${{ secrets.NCS_ZOOMIN_KEY }}
+        run: |
+          # trust server
+          mkdir -p ~/.ssh
+          ssh-keyscan ${{ vars.NCS_ZOOMIN_SERVER }} >> ~/.ssh/known_hosts
+
+          # prepare key
+          touch zoomin_key
+          chmod 600 zoomin_key
+          echo "$NCS_ZOOMIN_KEY" | base64 -d > zoomin_key
+
+          # upload files
+          for file in docs/addon-serial_modem*.zip; do
+            sftp -v -i zoomin_key ${{ vars.NCS_ZOOMIN_USER }}@${{ vars.NCS_ZOOMIN_SERVER }} <<EOF
+              cd docs-be.nordicsemi.com/sphinx-html/incoming
+              put ${file}
+              cd ../../../nordic-be-dev.zoominsoftware.io/sphinx-html/incoming
+              put ${file}
+              quit
+          EOF
+          done
 
       - name: Find Comment
         if: ${{ github.event.workflow_run.event == 'pull_request' }}
@@ -57,29 +97,5 @@ jobs:
           comment-id: ${{ steps.fc.outputs.comment-id }}
           issue-number: ${{ env.PR }}
           body: |
-            You can find the documentation preview for this PR [here](${{ vars.NCS_DOC_PR_HOSTING_URL }}addons/serial-modem/PR-${{ env.PR }}/).
+            You can find the documentation preview for this PR [here](${{ vars.NCS_DOC_PR_HOSTING_URL }}addon-serial_modem/PR-${{ env.PR }}/).
           edit-mode: replace
-
-      - name: Prepare Key
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan upload-v1.zoominsoftware.io >> ~/.ssh/known_hosts
-
-          echo "${{ secrets.ZOOMIN_KEY }}" > zoomin_key
-          chmod 600 zoomin_key
-
-      - name: Publish documentation - prod
-        if: ${{inputs.publish_to_prod}}
-        run: |
-          sftp -v -i zoomin_key nordic@upload-v1.zoominsoftware.io <<EOF
-            cd docs-be.nordicsemi.com/sphinx-html/incoming
-            put doc/build/html/${{env.ARCHIVE}}
-          EOF
-
-      - name: Publish documentation - dev
-        if: ${{inputs.publish_to_dev}}
-        run: |
-          sftp -v -i zoomin_key nordic@upload-v1.zoominsoftware.io <<EOF
-            cd nordic-be-dev.zoominsoftware.io/sphinx-html/incoming
-            put doc/build/html/${{env.ARCHIVE}}
-          EOF
