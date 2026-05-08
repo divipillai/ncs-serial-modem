@@ -119,10 +119,10 @@ jobs:
           OUTDIR=doc/build/html
           ARCHIVE="addon-serial_modem_$VERSION.zip"
 
-          cp custom.properties "$OUTDIR/custom.properties"
+          cp doc/custom.properties "$OUTDIR/custom.properties"
           sed -i 's/__VERSION__/'"$VERSION"'/g' "$OUTDIR/custom.properties"
 
-          cp tags.yml "$OUTDIR/tags.yml"
+          cp doc/tags.yml "$OUTDIR/tags.yml"
           sed -i 's/__VERSION__/'"$VERSION"'/g' "$OUTDIR/tags.yml"
 
           pushd "$OUTDIR"
