@@ -44,7 +44,7 @@ jobs:
           github.event.workflow_run.head_branch == 'main' &&
           github.event.workflow_run.head_repository.full_name == github.repository
         env:
-          NCS_ZOOMIN_KEY: ${{ secrets.NCS_ZOOMIN_KEY }}
+          NCS_ZOOMIN_KEY: ${{ secrets.ZOOMIN_KEY }}
         run: |
           # trust server
           mkdir -p ~/.ssh
