@@ -39,6 +39,19 @@ jobs:
           fi
           printf 'PR=%s\n' "$PR" >> "$GITHUB_ENV"
 
+      - name: Upload to Azure storage
+        working-directory: docs
+        env:
+          AZCOPY_CONCURRENCY_VALUE: 1024
+          NCS_DOC_SAS_PRS: ${{ secrets.NCS_DOC_SAS_PRS }}
+          NCS_DOC_SAS_MAIN: ${{ secrets.NCS_DOC_SAS_MAIN }}
+        run: |
+          if [[ "${{ github.event.workflow_run.event }}" == "pull_request" ]]; then
+            azcopy cp $OUTDIR "${{ vars.NCS_DOC_PR_STORAGE_URL }}addon-serial_modem?$NCS_DOC_SAS_PRS" --recursive=true
+          else
+            azcopy cp $OUTDIR "${{ vars.NCS_DOC_STORAGE_URL }}addon-serial_modem?$NCS_DOC_SAS_MAIN" --recursive=true
+          fi
+
       - name: Upload Zoomin documentation
         if: >
           github.event.workflow_run.head_branch == 'main' &&
@@ -53,7 +66,7 @@ jobs:
           # prepare key
           touch zoomin_key
           chmod 600 zoomin_key
-          echo "$NCS_ZOOMIN_KEY" | base64 -d > zoomin_key
+          echo "${{ secrets.ZOOMIN_KEY }}" > zoomin_key
 
           # upload files
           for file in docs/addon-serial_modem*.zip; do
@@ -65,19 +78,6 @@ jobs:
               quit
           EOF
           done
-
-      - name: Upload to Azure storage
-        working-directory: docs
-        env:
-          AZCOPY_CONCURRENCY_VALUE: 1024
-          NCS_DOC_SAS_PRS: ${{ secrets.NCS_DOC_SAS_PRS }}
-          NCS_DOC_SAS_MAIN: ${{ secrets.NCS_DOC_SAS_MAIN }}
-        run: |
-          if [[ "${{ github.event.workflow_run.event }}" == "pull_request" ]]; then
-            azcopy cp $OUTDIR "${{ vars.NCS_DOC_PR_STORAGE_URL }}addon-serial_modem?$NCS_DOC_SAS_PRS" --recursive=true
-          else
-            azcopy cp $OUTDIR "${{ vars.NCS_DOC_STORAGE_URL }}addon-serial_modem?$NCS_DOC_SAS_MAIN" --recursive=true
-          fi
 
       - name: Find Comment
         if: ${{ github.event.workflow_run.event == 'pull_request' }}
