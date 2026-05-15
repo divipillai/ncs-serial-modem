@@ -4,19 +4,6 @@ permissions:
   contents: read
 
 on:
-  workflow_dispatch:
-    inputs:
-      documentation_tag:
-        type: string
-        required: false
-        default: "latest"
-        description: "Label of the documentation"
-      publish_to_prod:
-        type: boolean
-        default: true
-      publish_to_dev:
-        type: boolean
-        default: true
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
