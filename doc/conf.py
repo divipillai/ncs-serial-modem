@@ -27,6 +27,7 @@ extensions = [
     'breathe',
     'sphinx_tabs.tabs',
     'sphinx_togglebutton',
+    'sphinxcontrib.svg2pdfconverter',
 ]
 
 templates_path = ['_templates']
@@ -51,6 +52,17 @@ latex_documents = [
     ('index', 'ncs-serial-modem.tex', 'ncs-serial-modem Documentation',
      'Nordic Semiconductor', 'manual'),
 ]
+
+# No Sphinx domain index in the RST sources; skip makeindex to avoid CI issues.
+latex_domain_indices = False
+
+latex_elements = {
+    'printindex': '',
+    'preamble': r"""
+\newif\ifincludeextra
+\includeextrafalse
+""",
+}
 
 ## -- Options for Breathe ----------------------------------------------------
 # https://breathe.readthedocs.io/en/latest/index.html
